@@ -1,9 +1,9 @@
 use nannou::prelude::*;
 use rand::random;
 
-const NODES: usize = 1000;
+const NODES: usize = 2500;
 const NODE_EDGES: usize = 2;
-const DRAW_EDGES: bool = false;
+const DRAW_EDGES: bool = true;
 
 fn main() {
     nannou::app(model)
@@ -27,26 +27,7 @@ fn model(app: &App) -> Model {
         )
     ).collect::<Vec<_>>().try_into().unwrap();
 
-    let mut edge_set = [0; NODES * NODE_EDGES];
-
-    // Naive distance calculation for drawing edges to nearest nodes;
-    // Manhattan distance is used as a 'good enough' approximation.
-    if DRAW_EDGES {
-        for i in 0..NODES {
-            let mut distances = [(f32::INFINITY, 0); NODES];
-            for j in 0..NODES {
-                if i == j { continue }
-                let dist_x = node_set[i].x - node_set[j].x;
-                let dist_y = node_set[i].y - node_set[j].y;
-                let dist = dist_x + dist_y;
-                distances[j] = (dist, j)
-            }
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-            for e in 0..NODE_EDGES {
-                edge_set[(NODE_EDGES * i) + e] = distances[e].1;
-            }
-        }
-    }
+    let edge_set = [0; NODES * NODE_EDGES];
     
     Model { node_set, edge_set }
 }
@@ -57,19 +38,23 @@ fn update(_app: &App, model: &mut Model, update: Update) {
         node.y += node.ay * update.since_last.as_secs_f32();
     }
 
-    for i in 0..NODES {
-        let mut distances = [(f32::INFINITY, 0); NODES];
-        for j in 0..NODES {
-            if i == j { continue }
-            let dist_x = (model.node_set[i].x - model.node_set[j].x).pow(2);
-            let dist_y = (model.node_set[i].y - model.node_set[j].y).pow(2);
-            let dist = ((dist_x + dist_y) as f32).sqrt();
-            distances[j] = (dist, j)
-        }
+    // Update the nearest-neighbours for edge drawing according to Euclidean distance.
+    if DRAW_EDGES {
+        for i in 0..NODES {
+            let mut distances = [(f32::INFINITY, 0); NODES];
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-        for e in 0..NODE_EDGES {
-            model.edge_set[(NODE_EDGES * i) + e] = distances[e].1;
+            for j in 0..NODES {
+                if i == j { continue }
+                let dist_x = (model.node_set[i].x - model.node_set[j].x).pow(2);
+                let dist_y = (model.node_set[i].y - model.node_set[j].y).pow(2);
+                let dist = dist_x + dist_y;
+                distances[j] = (dist, j)
+            }
+
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            for e in 0..NODE_EDGES {
+                model.edge_set[(NODE_EDGES * i) + e] = distances[e].1;
+            }
         }
     }
 }
@@ -77,8 +62,8 @@ fn update(_app: &App, model: &mut Model, update: Update) {
 fn view(app: &App, model: &Model, frame: Frame){
     let draw = app.draw();
     draw.background().color(BLACK);
-    // network(&draw, model);
-    fireflies(&draw, model);
+    network(&draw, model);
+    // fireflies(&draw, model);
     draw.to_frame(app, &frame).unwrap();
 }
 
