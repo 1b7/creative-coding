@@ -3,7 +3,7 @@ use rand::random;
 
 const NODES: usize = 2500;
 const NODE_EDGES: usize = 2;
-const DRAW_EDGES: bool = true;
+const DRAW_EDGES: bool = false;
 
 fn main() {
     nannou::app(model)
@@ -23,7 +23,7 @@ fn model(app: &App) -> Model {
             random::<f32>() * width - width/2., 
             random::<f32>() * height - height/2., 
             random::<f32>() * 10.0 - 5.0,
-            random::<f32>() * 10.0 - 5.0
+            random::<f32>() * (2.0 * PI)
         )
     ).collect::<Vec<_>>().try_into().unwrap();
 
@@ -34,8 +34,8 @@ fn model(app: &App) -> Model {
 
 fn update(_app: &App, model: &mut Model, update: Update) {
     for mut node in &mut model.node_set {
-        node.x += node.ax * update.since_last.as_secs_f32();
-        node.y += node.ay * update.since_last.as_secs_f32();
+        node.x += (node.v * node.a.cos()) * update.since_last.as_secs_f32();
+        node.y += (node.v * node.a.sin()) * update.since_last.as_secs_f32();
     }
 
     // Update the nearest-neighbours for edge drawing according to Euclidean distance.
@@ -62,8 +62,8 @@ fn update(_app: &App, model: &mut Model, update: Update) {
 fn view(app: &App, model: &Model, frame: Frame){
     let draw = app.draw();
     draw.background().color(BLACK);
-    network(&draw, model);
-    // fireflies(&draw, model);
+    // network(&draw, model);
+    fireflies(&draw, model);
     draw.to_frame(app, &frame).unwrap();
 }
 
@@ -106,16 +106,16 @@ fn fireflies(draw: &Draw, model: &Model) {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Node { x: f32, y: f32, ax: f32, ay: f32, hsla: (f32, f32, f32, f32), r: f32 }
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+struct Node { x: f32, y: f32, v: f32, a: f32, hsla: (f32, f32, f32, f32), r: f32 }
 
 impl Node {
-    pub fn new(x: f32, y: f32, ax: f32, ay: f32) -> Self { 
+    pub fn new(x: f32, y: f32, v: f32, a: f32) -> Self { 
         Self {
             x,
             y,
-            ax,
-            ay,
+            v,
+            a,
             hsla: (
                 rand::random::<f32>() * (30.0/360.0) + (10.0/360.0), 
                 1., 
